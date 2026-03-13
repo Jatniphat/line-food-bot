@@ -125,53 +125,58 @@ app.post('/webhook', line.middleware(config), (req, res) => {
 
 // ฟังก์ชันจัดการข้อความ
 function handleEvent(event) {
-  if (event.type !== 'message' || event.message.type !== 'text') {
+  // 1. ถ้าไม่ใช่ event ประเภทข้อความ (เช่น การกดเพิ่มเพื่อน หรือบล็อค) ให้ข้ามไป
+  if (event.type !== 'message') {
     return Promise.resolve(null);
   }
 
-  const keywords = ["แนะนำร้านอาหาร", "กินอะไรดี", "หิวข้าว"];
-  const userMessage = event.message.text.trim();
+  // 2. เตรียมข้อความ "ฉันไม่เข้าใจ" ไว้เป็นคำตอบเริ่มต้น
+  const defaultReply = {
+    type: 'text',
+    text: 'ฉันไม่เข้าใจ'
+  };
 
-  if (keywords.includes(userMessage)) {
-    // สุ่มเมนูอาหาร
-    const randomFood = foodDatabase[Math.floor(Math.random() * foodDatabase.length)];
-    
-    // พิมพ์บอกในหน้าจอสีดำ (Terminal) ว่าสุ่มได้อะไร
-    console.log(`🤖 กำลังสุ่มอาหาร... สุ่มได้เมนู: ${randomFood.name}`);
-    
-    // สร้าง Flex Message
-    const flexMessage = {
-      type: 'flex',
-      altText: `ลองเมนู ${randomFood.name} ไหม?`,
-      contents: {
-        type: "bubble",
-        hero: {
-          type: "image",
-          url: randomFood.image,
-          size: "full",
-          aspectRatio: "20:13",
-          aspectMode: "cover"
-        },
-        body: {
-          type: "box",
-          layout: "vertical",
-          spacing: "sm",
-          contents: [
-            { type: "text", text: randomFood.name, weight: "bold", size: "xl", wrap: true },
-            { type: "text", text: randomFood.nutrition, size: "sm", color: "#666666", wrap: true }
-          ]
+  // 3. เช็คว่าถ้าผู้ใช้ส่งมาเป็น "ตัวอักษร"
+  if (event.message.type === 'text') {
+    const keywords = ["แนะนำร้านอาหาร", "กินอะไรดี", "หิวข้าว"];
+    const userMessage = event.message.text.trim();
+
+    // ถ้าพิมพ์ตรงกับคีย์เวิร์ดเป๊ะๆ
+    if (keywords.includes(userMessage)) {
+      const randomFood = foodDatabase[Math.floor(Math.random() * foodDatabase.length)];
+      
+      const flexMessage = {
+        type: 'flex',
+        altText: `ลองเมนู ${randomFood.name} ไหม?`,
+        contents: {
+          type: "bubble",
+          hero: {
+            type: "image",
+            url: randomFood.image,
+            size: "full",
+            aspectRatio: "20:13",
+            aspectMode: "cover"
+          },
+          body: {
+            type: "box",
+            layout: "vertical",
+            spacing: "sm",
+            contents: [
+              { type: "text", text: randomFood.name, weight: "bold", size: "xl", wrap: true },
+              { type: "text", text: randomFood.nutrition, size: "sm", color: "#666666", wrap: true }
+            ]
+          }
         }
-      }
-    };
-    return client.replyMessage(event.replyToken, flexMessage);
-  } else {
-    // กรณีพิมพ์คำอื่นๆ
-    console.log(`🤖 ผู้ใช้พิมพ์คำว่า: ${userMessage} (ไม่ตรงกับ Keyword)`);
-    return client.replyMessage(event.replyToken, {
-      type: 'text',
-      text: 'ฉันไม่เข้าใจ'
-    });
+      };
+      
+      // ส่งเมนูอาหารกลับไป แล้วจบการทำงาน
+      return client.replyMessage(event.replyToken, flexMessage);
+    }
   }
+
+  // 4. ถ้าหลุดรอดมาจากเงื่อนไขด้านบนทั้งหมด (เช่น เป็นสติ๊กเกอร์, รูปภาพ, หรือพิมพ์คำอื่น)
+  // ให้ส่งข้อความ "ฉันไม่เข้าใจ" กลับไป
+  return client.replyMessage(event.replyToken, defaultReply);
 }
 
 const port = process.env.PORT || 3000;
