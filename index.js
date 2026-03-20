@@ -9,7 +9,7 @@ const config = {
 };
 
 // 2. ตั้งค่า Gemini API Key ของคุณ
-const genAI = new GoogleGenerativeAI("ใส่_GEMINI_API_KEY_ของคุณที่นี่"); 
+const genAI = new GoogleGenerativeAI("AIzaSyCRqVhaWj_bL6a1XwRpaG0m5FYAaPvP1Fk"); 
 
 const client = new line.Client(config);
 const app = express();
