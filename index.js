@@ -42,7 +42,7 @@ const foodDatabase = [
 async function analyzeIntentWithAI(userText) {
   try {
     // ปรับรุ่น AI ให้เป็นรุ่นปัจจุบันที่เสถียรสำหรับงานแชทบอท
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
     const prompt = `
         คุณคือ AI ผู้ช่วยวิเคราะห์ความต้องการ (Intent) ของผู้ใช้งานสำหรับบอท LINE แนะนำอาหาร
         หน้าที่ของคุณคือ อ่านข้อความจากผู้ใช้ แล้ววิเคราะห์ว่าผู้ใช้กำลัง "หิว", "ถามหาของกิน", "ให้แนะนำร้านอาหาร", หรือ "อยากได้เมนูอาหาร" หรือไม่
