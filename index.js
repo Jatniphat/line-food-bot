@@ -2,19 +2,15 @@ const express = require('express');
 const line = require('@line/bot-sdk');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-// 1. ตั้งค่า LINE API ของคุณ
 const config = {
   channelAccessToken: 'FfRQB0ytWAUE0ePBK0s/QLK86gv/Fm0gFgtLsO9n5sR+vEmAUmrHKtH3cFr+QUOxn3rUdy1a4Lih39xSsIfd/38S1kwDpx8Ya7S7DviB7dv2Y4NIXndvwv/Zvz/7yutf/c7NB6pdh3zQ7P3g6WqRkQdB04t89/1O/w1cDnyilFU=',
   channelSecret: '1e3fecef99aba8df326e7cc0515c018e'
 };
-
-// 2. ตั้งค่า Gemini API Key ของคุณ
 const genAI = new GoogleGenerativeAI("AIzaSyCRqVhaWj_bL6a1XwRpaG0m5FYAaPvP1Fk"); 
 
 const client = new line.Client(config);
 const app = express();
 
-// 3. ฐานข้อมูลอาหารชุดใหญ่ 20 เมนูของคุณ
 const foodDatabase = [
   { name: "สเต็กเนื้อพรีเมียม", image: "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?fm=jpg&w=800", nutrition: "พลังงาน: 650 kcal | โปรตีน: 45g | ไขมัน: 35g" },
   { name: "ผัดไทยกุ้งสด", image: "https://images.unsplash.com/photo-1559314809-0d155014e29e?fm=jpg&w=800", nutrition: "พลังงาน: 450 kcal | โปรตีน: 15g | ไขมัน: 18g" },
@@ -38,36 +34,54 @@ const foodDatabase = [
   { name: "ครัวซองต์เนยสด", image: "https://images.unsplash.com/photo-1509440159596-0249088772ff?fm=jpg&w=800", nutrition: "พลังงาน: 350 kcal | โปรตีน: 6g | ไขมัน: 18g" }
 ];
 
-// 4. ฟังก์ชัน AI วิเคราะห์ข้อความ (ของเพื่อน)
-async function analyzeIntentWithAI(userText) {
+async function analyzeFoodRequestWithAI(userText) {
   try {
-    // ปรับรุ่น AI ให้เป็นรุ่นปัจจุบันที่เสถียรสำหรับงานแชทบอท
     const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+    const menuNames = foodDatabase.map(food => food.name).join(", ");
+
     const prompt = `
-        คุณคือ AI ผู้ช่วยวิเคราะห์ความต้องการ (Intent) ของผู้ใช้งานสำหรับบอท LINE แนะนำอาหาร
-        หน้าที่ของคุณคือ อ่านข้อความจากผู้ใช้ แล้ววิเคราะห์ว่าผู้ใช้กำลัง "หิว", "ถามหาของกิน", "ให้แนะนำร้านอาหาร", หรือ "อยากได้เมนูอาหาร" หรือไม่
+    คุณคือแชทบอท AI สุดอัจฉริยะที่เป็นกูรูด้านอาหาร มีความหิวอยู่ตลอดเวลา และกวนนิดๆ
+    ผู้ใช้พิมพ์ข้อความมาว่า: "${userText}"
 
-        กฎการตอบ (สำคัญมาก):
-        1. หากข้อความสื่อถึงเรื่องกินหรือความหิว (เช่น หิว, กินไรดี, ท้องร้อง, มีร้านเด็ดไหม, หาไรลงท้องหน่อย) ให้ตอบกลับมาแค่คำว่า "YES" เท่านั้น
-        2. หากข้อความสื่อถึงเรื่องอื่นที่ไม่เกี่ยวข้องกัน (เช่น สวัสดี, ทำอะไรอยู่, อากาศดีจัง) ให้ตอบกลับมาแค่คำว่า "NO" เท่านั้น
-        3. ห้ามพิมพ์อธิบาย ห้ามพิมพ์เครื่องหมายวรรคตอนใดๆ เพิ่มเติมเด็ดขาด ให้ตอบแค่ YES หรือ NO คำเดียวโดดๆ
+    หน้าที่ของคุณ:
+    1. วิเคราะห์ว่าข้อความนี้เกี่ยวกับความหิว การกิน หรือขอให้แนะนำอาหารหรือไม่ (แม้จะพิมพ์แปลกๆ เช่น "หาไรกระแทกปาก", "อยากซดน้ำ", "เอาแบบไม่อ้วน", "ท้องร้อง")
+    2. ถ้าเกี่ยวกับอาหาร ให้วิเคราะห์ต่อว่าเขาอยากกินประเภทไหน? (เช่น ของต้ม/ซุป, เมนูเส้น, ของทอด, อาหารคลีน, ของแซ่บ, ของหวาน)
+    3. คัดเลือกเมนู 1 อย่างที่ตรงใจเขาที่สุดจากรายชื่อนี้เท่านั้น: [${menuNames}] 
+       - ตัวอย่าง: ถ้าอยากได้ "เมนูเส้น" ให้เลือก ผัดไทย, ราเมน หรือ ก๋วยเตี๋ยว
+       - ตัวอย่าง: ถ้าอยากได้ "ของต้ม/ซุป" ให้เลือก ต้มยำกุ้ง, ชาบู หรือ ราเมน
+       - ตัวอย่าง: ถ้าอยากได้ "อาหารคลีน/ลดน้ำหนัก" ให้เลือก สลัดเพื่อสุขภาพ
+       - ถ้าเขาไม่เจาะจง ให้สุ่มเมนูเด็ดมา 1 อย่าง
+    4. แต่งประโยคตอบกลับให้มีชีวิตจิตใจ และเชื่อมโยงกับสิ่งที่เขาถาม! 
+       - เช่น ถ้าเขาถามหาของคลีน ให้ตอบประมาณ "ช่วงคุมน้ำหนักก็ต้องจัดนี่เลยครับ สลัดคลีนๆ แต่รับรองว่าอิ่มอร่อยแน่นอน!" 
+       - หรือถ้าเขาบ่นหิวจัด ให้ตอบประมาณ "โอ้ยยย ได้ยินเสียงท้องร้องทะลุจอมาเลยครับ! จัดเมนูหนักๆ ไปเลยไหม!?"
 
-        ข้อความจากผู้ใช้: "${userText}"
-        `;
+    ถ้าข้อความไม่เกี่ยวกับอาหาร ให้ชวนคุยวกกลับมาเรื่องกินให้ได้แบบเนียนๆ
+
+    กฎเหล็ก: ตอบกลับมาเป็นข้อมูล JSON Format เท่านั้น ห้ามมีข้อความ markdown (เช่น \`\`\`json) หรืออธิบายเพิ่มเด็ดขาด
+    {
+      "isFoodRelated": true หรือ false,
+      "replyText": "คำพูดที่คุณแต่งขึ้นมาใหม่แบบจัดเต็ม",
+      "selectedMenuName": "ชื่อเมนูจากฐานข้อมูลที่ตรงกับความต้องการที่สุด (ต้องสะกดให้ตรงเป๊ะ)"
+    }
+    `;
         
     const result = await model.generateContent(prompt);
-    const responseText = result.response.text().trim().toUpperCase();
+    let responseText = result.response.text().trim();
     
-    console.log(`🤖 AI อ่านข้อความ "${userText}" แล้วตอบว่า:`, responseText); 
+    responseText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
+    console.log("🤖 สมอง AI คิดเสร็จแล้ว (JSON):", responseText); 
     
-    return responseText.includes("YES");
+    return JSON.parse(responseText);
   } catch (error) {
     console.error("AI Analysis Error:", error);
-    return false;
+    return { 
+      isFoodRelated: false, 
+      replyText: "แงงงงง ตอนนี้สมองผมเบลอหิวจนตาลาย คิดอะไรไม่ออกเลยครับ รบกวนพิมพ์ใหม่อีกทีน้าา 😭", 
+      selectedMenuName: "" 
+    };
   }
 }
 
-// 5. Webhook Endpoint
 app.post('/webhook', line.middleware(config), async (req, res) => {
   try {
     const results = await Promise.all(req.body.events.map(handleEvent));
@@ -78,61 +92,66 @@ app.post('/webhook', line.middleware(config), async (req, res) => {
   }
 });
 
-// 6. ฟังก์ชันจัดการข้อความหลัก (ผสานระบบ AI เข้ากับรูปแบบ Flex Message ของคุณ)
 async function handleEvent(event) {
   if (event.type !== 'message') {
     return Promise.resolve(null);
   }
 
-  const defaultReply = {
-    type: 'text',
-    text: 'ฉันไม่เข้าใจ'
-  };
-
-  // เช็คว่าถ้าเป็นข้อความตัวอักษร ให้ส่งไปให้ AI คิด
-  if (event.message.type === 'text') {
-    const userText = event.message.text.trim();
-    
-    // โยนข้อความให้ AI วิเคราะห์
-    const wantsToEat = await analyzeIntentWithAI(userText);
-
-    // ถ้า AI ตอบว่า YES (แปลว่าหิว)
-    if (wantsToEat) {
-      const randomFood = foodDatabase[Math.floor(Math.random() * foodDatabase.length)];
-      
-      const flexMessage = {
-        type: 'flex',
-        altText: `ลองเมนู ${randomFood.name} ไหม?`,
-        contents: {
-          type: "bubble",
-          hero: {
-            type: "image",
-            url: randomFood.image,
-            size: "full",
-            aspectRatio: "20:13",
-            aspectMode: "cover"
-          },
-          body: {
-            type: "box",
-            layout: "vertical",
-            spacing: "sm",
-            contents: [
-              { type: "text", text: randomFood.name, weight: "bold", size: "xl", wrap: true },
-              { type: "text", text: randomFood.nutrition, size: "sm", color: "#666666", wrap: true }
-            ]
-          }
-        }
-      };
-      
-      return client.replyMessage(event.replyToken, flexMessage);
-    }
+  if (event.message.type !== 'text') {
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: 'ส่งรูปมาทำไมเนี่ยยย หิวจนกินรูปไม่ได้แล้วน้า พิมพ์บอกมาเลยดีกว่าว่าอยากกินอะไร! 🤤'
+    });
   }
 
-  // ถ้าส่งรูป สติ๊กเกอร์ หรือ AI ตอบว่า NO (ไม่หิว)
-  return client.replyMessage(event.replyToken, defaultReply);
+  const userText = event.message.text.trim();
+  
+  const aiResult = await analyzeFoodRequestWithAI(userText);
+
+  if (aiResult.isFoodRelated) {
+    let selectedFood = foodDatabase.find(food => food.name === aiResult.selectedMenuName);
+    
+    if (!selectedFood) {
+      selectedFood = foodDatabase[Math.floor(Math.random() * foodDatabase.length)];
+    }
+    
+    const flexMessage = {
+      type: 'flex',
+      altText: `ลองเมนู ${selectedFood.name} ไหม?`,
+      contents: {
+        type: "bubble",
+        hero: {
+          type: "image",
+          url: selectedFood.image,
+          size: "full",
+          aspectRatio: "20:13",
+          aspectMode: "cover"
+        },
+        body: {
+          type: "box",
+          layout: "vertical",
+          spacing: "sm",
+          contents: [
+            { type: "text", text: selectedFood.name, weight: "bold", size: "xl", wrap: true },
+            { type: "text", text: selectedFood.nutrition, size: "sm", color: "#666666", wrap: true }
+          ]
+        }
+      }
+    };
+    
+    return client.replyMessage(event.replyToken, [
+      { type: 'text', text: aiResult.replyText },
+      flexMessage
+    ]);
+
+  } else {
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: aiResult.replyText
+    });
+  }
 }
 
-// 7. ส่วนสำหรับ UptimeRobot และตั้งค่าเซิร์ฟเวอร์
 app.get('/', (req, res) => {
   res.send('Bot is awake!');
 });
