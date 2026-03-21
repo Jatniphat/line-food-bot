@@ -6,7 +6,7 @@ const config = {
   channelAccessToken: 'FfRQB0ytWAUE0ePBK0s/QLK86gv/Fm0gFgtLsO9n5sR+vEmAUmrHKtH3cFr+QUOxn3rUdy1a4Lih39xSsIfd/38S1kwDpx8Ya7S7DviB7dv2Y4NIXndvwv/Zvz/7yutf/c7NB6pdh3zQ7P3g6WqRkQdB04t89/1O/w1cDnyilFU=',
   channelSecret: '1e3fecef99aba8df326e7cc0515c018e'
 };
-const genAI = new GoogleGenerativeAI("AIzaSyCRqVhaWj_bL6a1XwRpaG0m5FYAaPvP1Fk"); 
+const genAI = new GoogleGenerativeAI("AIzaSyCITe1XH9vDBH8aFJxgDsPWsXaG1fxo-vc"); 
 
 const client = new line.Client(config);
 const app = express();
